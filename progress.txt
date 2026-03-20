@@ -1,0 +1,44 @@
+项目进度：AdsDataHub
+核心需求
+[x] 确定技术栈 (Next.js 14, Supabase, Dayjs)
+
+[x] 确定时区标准 (GMT+05:30)
+
+[x] 确定产品映射逻辑 (ft, pu, ppt)
+
+[x] 确定数据流 (双 CSV 上传：指标表 + 新 JID 付费表)
+
+文档就绪情况
+[x] .cursorrules (规则注入)
+
+[x] PRD.md (需求说明)
+
+[x] TECH_STACK.md (技术规范)
+
+[x] BACKEND_STRUCTURE.md (数据库设计)
+
+开发任务列表
+[x] 1. 项目环境初始化 (Next.js + 基础依赖安装)
+
+[x] 2. Supabase 数据库表结构创建
+
+[x] 3. 实现基于印度时区的 CSV 手动上传与预览功能
+
+[x] 4. 实现指标表 CSV 上传（日期/广告系列/预算/费用）与新 JID 付费表 CSV 上传（日期/广告系列/新 JID 付费数量）
+
+[x] 5. 开发大表看板 (DataTable) 与产品线筛选
+
+[x] 6. 实现双层备注系统 (Global & Campaign Notes)
+ 
+2026-02-26：细化 PRD 业务与数据规则（时区、CSV、CPA、备注、错误处理等）。
+2026-02-26：完成 Next.js 项目初始化、Supabase 表结构 SQL、印度时区工具、CSV 上传校验 + 入库、Google Ads 同步 API，以及基础看板（日期筛选、产品线卡片、分页表格）。
+2026-02-26：补齐 daily_notes / campaign_notes API，完成左表右备注布局（日期 - 内容，一行一条），并支持导出当前筛选表格为 CSV。
+2026-02-27：完成看板透视表 Light 模式重构（产品 Tab、日期列 Sticky、产品日汇总三列、USD 统一换算、单元格内备注列、Campaign 之间 40px 透明间隔列）。
+2026-03-12：备注永久保留：透视表合并「仅有备注无指标」的 (date,campaign) 行并返回全量 campaign_notes，避免备注因无当日指标而不显示；指标/付费 CSV 导入明确不写 campaign_notes；新增 GET /api/notes/check 用于检查有指标无备注、有备注无指标。
+2026-03-19：补充 Vercel 部署说明（见对话）：仓库 Root Directory 设为 web；在 Vercel 配置与本地 .env.local 一致的环境变量；线上地址为 https://你的域名.vercel.app/dashboard。
+2026-03-20：透视表 Campaign 列组新增「新IOS JID数量」「新IOS 用户CPA」；付费 CSV 支持读取新列并写入 `server_paid_data.new_ios_jid_users`（需在 Supabase 执行 `web/supabase-migration-20260320-add-new-ios-jid-users.sql`）。
+2026-03-20：看板 `/api/dashboard` 查询 `server_paid_data` 时若含 `new_ios_jid_users` 列失败（常见：未跑迁移），自动回退为仅查 `new_jid_users`，避免整页报错；迁移完成后 iOS 列自动恢复。
+2026-03-20：新 JID 付费表上传 `/api/csv/upload/paid` 同样支持在未迁移时回退写入（不写 `new_ios_jid_users`）；上传页展示 Supabase `details`；成功时若回退则提示执行迁移脚本。
+2026-03-21：透视表在「新IOS 用户CPA」后增加「新安卓 JID数量」「新增IOS付费用户占比」（占比=新IOS JID数量/新JID用户数，百分比两位小数）；付费 CSV 解析 `新安卓 JID数量` 并写入 `server_paid_data.new_android_jid_users`（迁移：`web/supabase-migration-20260321-add-new-android-jid-users.sql`）；上传与看板查询均为 full→无安卓→仅JID 三级回退。
+2026-03-21：新增根目录文档 `DEPLOY_VERCEL.md`（Git 推送、Vercel Root Directory=`web`、Supabase 环境变量、看板/上传路径与常见问题）。
+2026-03-21：新增根目录 `小白-Vercel部署指南.md`（从零：GitHub、Git、Vercel Root Directory、Supabase 环境变量、发给领导的链接、以后如何更新）。
