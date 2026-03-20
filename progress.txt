@@ -42,3 +42,4 @@
 2026-03-21：透视表在「新IOS 用户CPA」后增加「新安卓 JID数量」「新增IOS付费用户占比」（占比=新IOS JID数量/新JID用户数，百分比两位小数）；付费 CSV 解析 `新安卓 JID数量` 并写入 `server_paid_data.new_android_jid_users`（迁移：`web/supabase-migration-20260321-add-new-android-jid-users.sql`）；上传与看板查询均为 full→无安卓→仅JID 三级回退。
 2026-03-21：新增根目录文档 `DEPLOY_VERCEL.md`（Git 推送、Vercel Root Directory=`web`、Supabase 环境变量、看板/上传路径与常见问题）。
 2026-03-21：新增根目录 `小白-Vercel部署指南.md`（从零：GitHub、Git、Vercel Root Directory、Supabase 环境变量、发给领导的链接、以后如何更新）。
+2026-03-21：修复 Vercel `next build` TypeScript 失败：`ads/sync` 中 `refresh_token` 类型收窄；新增 `web/src/papaparse.d.ts` 声明 papaparse 以满足严格类型检查。

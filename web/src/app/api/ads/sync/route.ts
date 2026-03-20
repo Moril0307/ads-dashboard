@@ -13,7 +13,11 @@ const customerIdsEnv = process.env.GOOGLE_ADS_CUSTOMER_IDS; // 逗号分隔
 /** 账户报表时区，与 Google Ads 后台一致；若非印度则会把 segments.date 转为印度日再入库，默认 Asia/Kolkata */
 const accountTimezone = process.env.GOOGLE_ADS_ACCOUNT_TIMEZONE ?? INDIA_TZ;
 
-function buildClient() {
+function buildClient(): {
+  api: GoogleAdsApi;
+  customerIds: string[];
+  refreshToken: string;
+} {
   if (!developerToken || !clientId || !clientSecret || !refreshToken || !customerIdsEnv) {
     throw new Error("Google Ads 环境变量未配置完整");
   }
@@ -26,7 +30,7 @@ function buildClient() {
 
   const customerIds = customerIdsEnv.split(",").map((id) => id.trim()).filter(Boolean);
 
-  return { api, customerIds };
+  return { api, customerIds, refreshToken };
 }
 
 export async function POST(req: NextRequest) {
@@ -57,7 +61,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { api, customerIds } = client;
+  const { api, customerIds, refreshToken: adsRefreshToken } = client;
 
   const endDate = toIndiaDate(new Date());
   const ranges = getIndiaDateRange(
@@ -79,7 +83,7 @@ export async function POST(req: NextRequest) {
     try {
       const customer = api.Customer({
         customer_id: customerId,
-        refresh_token: refreshToken,
+        refresh_token: adsRefreshToken,
         login_customer_id: customerId
       });
 
