@@ -131,7 +131,6 @@ export default function DashboardPage() {
     }
     // 日期按升序排列（最早在上，最新在下）
     const dates = [...(data.dates ?? [])].sort((a, b) => (a > b ? 1 : -1));
-    const campaigns = [...new Set(data.rows.map((r) => r.campaign_name))].sort();
     const map = new Map<string, Row>();
     const summaryAgg = new Map<
       string,
@@ -161,6 +160,40 @@ export default function DashboardPage() {
       const overallCpa = totalPaid > 0 ? totalSpend / totalPaid : null;
       dailySummary.set(date, { totalBudget, totalSpend, totalPaid, overallCpa });
     }
+
+    /** 区间内每日花费、最大日预算；用于排序 */
+    const campaignSortMeta = (campaignName: string) => {
+      let maxBudgetHkd = 0;
+      let allDaysZeroSpend = true; // 若无任一天 spend>0 保持 true（含区间内无行视为 0 花费）
+      let trailingZeroSpendDays = 0;
+      for (const d of dates) {
+        const row = map.get(`${d}__${campaignName}`);
+        const spend = row && typeof row.spend === "number" ? row.spend : 0;
+        const budget = row && typeof row.budget === "number" ? row.budget : 0;
+        if (budget > maxBudgetHkd) maxBudgetHkd = budget;
+        if (spend > 0) allDaysZeroSpend = false;
+      }
+      for (let i = dates.length - 1; i >= 0; i--) {
+        const row = map.get(`${dates[i]}__${campaignName}`);
+        const spend = row && typeof row.spend === "number" ? row.spend : 0;
+        if (spend === 0) trailingZeroSpendDays += 1;
+        else break;
+      }
+      // 暂停（排后）：① 全区间花费为 0；② 从最晚日起连续 ≥2 天花费为 0（含「近期刚停」、日期里含周末等——业务上视为低优先观察）
+      const paused =
+        dates.length === 0 || allDaysZeroSpend || trailingZeroSpendDays >= 2;
+
+      return { paused, maxBudgetHkd };
+    };
+
+    const campaignNames = [...new Set(data.rows.map((r) => r.campaign_name))];
+    const campaigns = campaignNames.sort((a, b) => {
+      const ma = campaignSortMeta(a);
+      const mb = campaignSortMeta(b);
+      if (ma.paused !== mb.paused) return ma.paused ? 1 : -1;
+      if (mb.maxBudgetHkd !== ma.maxBudgetHkd) return mb.maxBudgetHkd - ma.maxBudgetHkd;
+      return a.localeCompare(b, "en");
+    });
 
     return { pivotDates: dates, pivotCampaigns: campaigns, rowMap: map, dailySummary };
   }, [data]);
@@ -336,6 +369,7 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-xs text-slate-600">
             按产品线 Tab 切换；金额以 USD 展示（1 USD = 7 HKD）。左侧日期列固定，右侧为产品日汇总 + Campaign 列组。
+            广告系列自左向右：预算高、近期有花费的在前；全区间无花费或「最晚日起连续 ≥2 天花费为 0」的系列排在最后。
           </p>
         </div>
         <div className="flex gap-2 text-xs">
