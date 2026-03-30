@@ -1,13 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 export default function UploadPage() {
+  const router = useRouter();
   const [metricsFile, setMetricsFile] = useState<File | null>(null);
   const [paidFile, setPaidFile] = useState<File | null>(null);
   const [metricsStatus, setMetricsStatus] = useState<string | null>(null);
   const [paidStatus, setPaidStatus] = useState<string | null>(null);
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
+
+  useEffect(() => {
+    if (!supabase) {
+      router.replace(`/login?redirect=${encodeURIComponent("/upload")}`);
+      return;
+    }
+    void supabase.auth.getUser().then(({ data: authData }) => {
+      const user = authData.user;
+      if (!user) router.replace(`/login?redirect=${encodeURIComponent("/upload")}`);
+    });
+  }, [supabase, router]);
 
   async function handleMetricsSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +34,10 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", metricsFile);
     const res = await fetch("/api/csv/upload/metrics", { method: "POST", body: formData });
+    if (res.status === 401) {
+      router.replace(`/login?redirect=${encodeURIComponent("/upload")}`);
+      return;
+    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       const details = json?.error?.details ? `（详情：${json.error.details}）` : "";
@@ -47,6 +66,10 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", paidFile);
     const res = await fetch("/api/csv/upload/paid", { method: "POST", body: formData });
+    if (res.status === 401) {
+      router.replace(`/login?redirect=${encodeURIComponent("/upload")}`);
+      return;
+    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       const details = json?.error?.details ? `（详情：${json.error.details}）` : "";

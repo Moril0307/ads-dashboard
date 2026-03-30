@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { isValidIndiaDate } from "@/lib/date";
 
 export async function GET(req: NextRequest) {
+  const supabaseClient = await getSupabaseServerClient();
+
   if (!supabaseClient) {
     return NextResponse.json(
       { ok: false, error: { code: "SUPABASE_NOT_CONFIGURED", message: "Supabase 环境变量未配置" } },
       { status: 500 }
+    );
+  }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { ok: false, error: { code: "UNAUTHORIZED", message: "未登录" } },
+      { status: 401 }
     );
   }
 
@@ -49,10 +59,20 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const supabaseClient = await getSupabaseServerClient();
+
   if (!supabaseClient) {
     return NextResponse.json(
       { ok: false, error: { code: "SUPABASE_NOT_CONFIGURED", message: "Supabase 环境变量未配置" } },
       { status: 500 }
+    );
+  }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { ok: false, error: { code: "UNAUTHORIZED", message: "未登录" } },
+      { status: 401 }
     );
   }
 

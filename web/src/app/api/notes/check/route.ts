@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { isValidIndiaDate } from "@/lib/date";
 import { inferProductLine } from "@/lib/productLine";
 import type { ProductLine } from "@/lib/productLine";
@@ -10,10 +10,20 @@ import type { ProductLine } from "@/lib/productLine";
  * - orphan_notes: 有备注但该日无指标的 (date, campaign_name)，备注会保留并在透视表中显示
  */
 export async function GET(req: NextRequest) {
+  const supabaseClient = await getSupabaseServerClient();
+
   if (!supabaseClient) {
     return NextResponse.json(
       { ok: false, error: { code: "SUPABASE_NOT_CONFIGURED", message: "Supabase 未配置" } },
       { status: 500 }
+    );
+  }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { ok: false, error: { code: "UNAUTHORIZED", message: "未登录" } },
+      { status: 401 }
     );
   }
 

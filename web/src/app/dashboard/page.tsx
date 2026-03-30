@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { getTodayInIndia, getIndiaWeekday, formatDateWithWeekday } from "@/lib/date";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 
 type Row = {
   date: string;
@@ -72,6 +74,7 @@ const TABS: { key: ProductTab; label: string }[] = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [productLine, setProductLine] = useState<ProductTab>("ft");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -81,6 +84,7 @@ export default function DashboardPage() {
   const [notesError, setNotesError] = useState<string | null>(null);
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [productDailyNotesMap, setProductDailyNotesMap] = useState<Record<string, string>>({});
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
 
   // 仅在客户端挂载后设置“今天”（印度时间），避免服务端与客户端时区不一致导致日期错位
   useEffect(() => {
@@ -88,6 +92,18 @@ export default function DashboardPage() {
     setStartDate(today);
     setEndDate(today);
   }, []);
+
+  // 必须登录后才能查看看板
+  useEffect(() => {
+    if (!supabase) {
+      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
+    void supabase.auth.getUser().then(({ data: authData }) => {
+      const user = authData.user;
+      if (!user) router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
+    });
+  }, [supabase, router]);
 
   async function load() {
     setLoading(true);
@@ -99,6 +115,10 @@ export default function DashboardPage() {
       view: "pivot",
     });
     const res = await fetch(`/api/dashboard?${params.toString()}`);
+    if (res.status === 401) {
+      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
     const json: ApiResponse = await res.json();
 
     if (!res.ok || !json.ok) {
@@ -217,6 +237,10 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date, campaign_name, content: trimmed }),
     });
+    if (res.status === 401) {
+      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       setNotesError(json.error?.message ?? "保存备注失败");
@@ -233,6 +257,10 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date, product_line: productLine, content: trimmed }),
     });
+    if (res.status === 401) {
+      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       setNotesError(json.error?.message ?? "保存产品日备注失败");

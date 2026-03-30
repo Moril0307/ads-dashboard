@@ -45,3 +45,4 @@
 2026-03-21：新增根目录文档 `DEPLOY_VERCEL.md`（Git 推送、Vercel Root Directory=`web`、Supabase 环境变量、看板/上传路径与常见问题）。
 2026-03-21：新增根目录 `小白-Vercel部署指南.md`（从零：GitHub、Git、Vercel Root Directory、Supabase 环境变量、发给领导的链接、以后如何更新）。
 2026-03-21：修复 Vercel `next build` TypeScript 失败：`ads/sync` 中 `refresh_token` 类型收窄；新增 `web/src/papaparse.d.ts` 声明 papaparse 以满足严格类型检查。
+2026-03-30：引入 Supabase Auth 登录态强制；`/dashboard` 与 `/upload` 未登录自动跳转 `/login`，所有相关 `/api/*` 路由未登录返回 401。

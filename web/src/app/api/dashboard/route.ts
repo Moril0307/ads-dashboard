@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { isValidIndiaDate, toIndiaDate } from "@/lib/date";
 import type { ProductLine } from "@/lib/productLine";
 import { inferProductLine } from "@/lib/productLine";
@@ -33,10 +33,20 @@ type ServerPaidRow = {
 };
 
 export async function GET(req: NextRequest) {
+  const supabaseClient = await getSupabaseServerClient();
+
   if (!supabaseClient) {
     return NextResponse.json(
       { ok: false, error: { code: "SUPABASE_NOT_CONFIGURED", message: "Supabase 环境变量未配置" } },
       { status: 500 }
+    );
+  }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { ok: false, error: { code: "UNAUTHORIZED", message: "未登录" } },
+      { status: 401 }
     );
   }
 

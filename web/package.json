@@ -9,22 +9,23 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "dayjs": "latest",
-    "papaparse": "latest",
+    "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "latest",
-    "google-ads-api": "latest"
+    "dayjs": "latest",
+    "google-ads-api": "latest",
+    "next": "latest",
+    "papaparse": "latest",
+    "react": "latest",
+    "react-dom": "latest"
   },
   "devDependencies": {
-    "typescript": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "autoprefixer": "latest",
+    "eslint": "latest",
     "postcss": "latest",
     "tailwindcss": "^3.4.17",
-    "eslint": "latest"
+    "typescript": "latest"
   }
 }
