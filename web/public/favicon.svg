@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#0EA5E9"/>
+  <path d="M124 350V162H182V302H273V350H124Z" fill="white"/>
+  <path d="M290 350V162H348V350H290Z" fill="white" opacity="0.95"/>
+  <path d="M380 162H436V206H408V350H356V206H380V162Z" fill="white" opacity="0.9"/>
+  <path
+    d="M182 237C202 214 241 192 274 192C325 192 340 228 340 228C340 228 311 256 266 270C214 287 182 237 182 237Z"
+    fill="#22C55E"
+    opacity="0.95"
+  />
+</svg>
+
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#0EA5E9"/>
+  <path d="M124 350V162H182V302H273V350H124Z" fill="white"/>
+  <path d="M290 350V162H348V350H290Z" fill="white" opacity="0.95"/>
+  <path d="M380 162H436V206H408V350H356V206H380V162Z" fill="white" opacity="0.9"/>
+  <path d="M182 237C202 214 241 192 274 192C325 192 340 228 340 228C340 228 311 256 266 270C214 287 182 237 182 237Z" fill="#22C55E" opacity="0.95"/>
+</svg>
+
