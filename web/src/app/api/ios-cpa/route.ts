@@ -1,17 +1,11 @@
 /**
  * Ads AI 数据分析平台拉取「新 iOS 用户 CPA」：按 campaign_name 对齐 Supabase 中
- * ads_metrics.spend + server_paid_data.new_ios_jid_users，与现有 dashboard 逻辑一致。
- *
- * 鉴权：Authorization: Bearer <IOS_CPA_SECRET>（与 Ads AI backend .env 中 IOS_CPA_API_KEY 相同）
- *
- * POST JSON:
- * { "report_date": "YYYY-MM-DD", "campaigns": [
- *   { "google_customer_id": "907...", "campaign_id": "123", "campaign_name": "ft-web-..." }
- * ]}
+ * ads_metrics.spend + server_paid_data.new_ios_jid_users。
+ * 使用日期范围查询 + trim(campaign_name) 匹配，避免 CSV 首尾空格导致 .in() 查不到行。
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { isValidIndiaDate, toIndiaDate } from "@/lib/date";
+import { addIndiaDays, isValidIndiaDate, toIndiaDate } from "@/lib/date";
 
 type CampIn = {
   google_customer_id?: string;
@@ -56,13 +50,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid report_date (expect YYYY-MM-DD, India calendar)" }, { status: 400 });
   }
   const reportD = toIndiaDate(reportDateRaw);
+  /** 历史区间：与看板「量尺」一致，向前多取一些自然日 */
+  const historyStart = addIndiaDays(reportD, -400);
 
-  const names = [
-    ...new Set(
-      campaigns.map((c) => String(c.campaign_name ?? "").trim()).filter(Boolean)
-    ),
-  ];
-  if (names.length === 0) {
+  const requestedTrimmed = new Set(
+    campaigns.map((c) => String(c.campaign_name ?? "").trim()).filter(Boolean)
+  );
+  if (requestedTrimmed.size === 0) {
     return NextResponse.json({
       by_key: {},
       note: "no campaign_name in request; Ads AI must send campaign name to match CSV/Supabase",
@@ -72,21 +66,30 @@ export async function POST(req: NextRequest) {
   const { data: adsAll, error: adsErr } = await admin
     .from("ads_metrics")
     .select("date,campaign_name,spend")
-    .in("campaign_name", names);
+    .gte("date", historyStart)
+    .lte("date", reportD);
 
   if (adsErr) {
     return NextResponse.json({ error: `ads_metrics: ${adsErr.message}` }, { status: 500 });
   }
 
-  let paidRows: { date: unknown; campaign_name: unknown; new_ios_jid_users?: unknown }[] | null = null;
+  let paidRows: { date: unknown; campaign_name: unknown; new_ios_jid_users?: unknown; new_jid_users?: unknown }[] =
+    [];
+
   const full = await admin
     .from("server_paid_data")
     .select("date,campaign_name,new_ios_jid_users")
-    .in("campaign_name", names);
+    .gte("date", historyStart)
+    .lte("date", reportD);
+
   if (!full.error) {
     paidRows = full.data ?? [];
   } else {
-    const legacy = await admin.from("server_paid_data").select("date,campaign_name,new_jid_users").in("campaign_name", names);
+    const legacy = await admin
+      .from("server_paid_data")
+      .select("date,campaign_name,new_jid_users")
+      .gte("date", historyStart)
+      .lte("date", reportD);
     if (legacy.error) {
       return NextResponse.json(
         { error: `server_paid_data: ${full.error.message} / ${legacy.error.message}` },
@@ -101,31 +104,33 @@ export async function POST(req: NextRequest) {
 
   const perName = new Map<string, Map<string, DayAgg>>();
 
-  function bucket(name: string) {
-    if (!perName.has(name)) perName.set(name, new Map());
-    return perName.get(name)!;
+  function bucket(nameTrimmed: string) {
+    if (!perName.has(nameTrimmed)) perName.set(nameTrimmed, new Map());
+    return perName.get(nameTrimmed)!;
   }
 
   for (const r of adsAll ?? []) {
-    const n = String(r.campaign_name ?? "");
+    const nTrim = String(r.campaign_name ?? "").trim();
+    if (!requestedTrimmed.has(nTrim)) continue;
     const d = toIndiaDate(String(r.date ?? ""));
-    const m = bucket(n);
+    const m = bucket(nTrim);
     const cur = m.get(d) ?? { spend: 0, ios: 0 };
     cur.spend += Number(r.spend ?? 0);
     m.set(d, cur);
   }
 
   for (const r of paidRows ?? []) {
-    const n = String(r.campaign_name ?? "");
+    const nTrim = String(r.campaign_name ?? "").trim();
+    if (!requestedTrimmed.has(nTrim)) continue;
     const d = toIndiaDate(String(r.date ?? ""));
-    const m = bucket(n);
+    const m = bucket(nTrim);
     const cur = m.get(d) ?? { spend: 0, ios: 0 };
     cur.ios = Number(r.new_ios_jid_users ?? 0);
     m.set(d, cur);
   }
 
-  function statsForName(campaignName: string) {
-    const m = perName.get(campaignName);
+  function statsForName(campaignNameTrimmed: string) {
+    const m = perName.get(campaignNameTrimmed);
     if (!m) {
       return { cur: null as number | null, lo: null as number | null, hi: null as number | null };
     }
@@ -148,12 +153,12 @@ export async function POST(req: NextRequest) {
   const by_key: Record<string, { ios_cpa?: number; ios_cpa_min?: number; ios_cpa_max?: number }> = {};
 
   for (const c of campaigns) {
-    const name = String(c.campaign_name ?? "").trim();
-    if (!name) continue;
+    const nameTrim = String(c.campaign_name ?? "").trim();
+    if (!nameTrim) continue;
     const key = rowKey(c);
     if (!key.includes(":") || key.startsWith(":")) continue;
 
-    const { cur, lo, hi } = statsForName(name);
+    const { cur, lo, hi } = statsForName(nameTrim);
     const entry: { ios_cpa?: number; ios_cpa_min?: number; ios_cpa_max?: number } = {};
     if (cur != null) entry.ios_cpa = cur;
     if (lo != null) entry.ios_cpa_min = lo;

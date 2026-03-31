@@ -78,6 +78,11 @@ export function getTodayInIndia(): string {
   return dayjs().tz(INDIA_TZ).format("YYYY-MM-DD");
 }
 
+/** 印度自然日加减若干天，返回 YYYY-MM-DD */
+export function addIndiaDays(isoDate: string, deltaDays: number): string {
+  return dayjs.tz(isoDate, "YYYY-MM-DD", INDIA_TZ).add(deltaDays, "day").format("YYYY-MM-DD");
+}
+
 /** 返回该日期在印度时区下的星期几 0=周日, 1=周一, ..., 6=周六（避免使用 Date#getDay() 的本地时区） */
 export function getIndiaWeekday(dateStr: string): number {
   const d = dayjs.tz(dateStr, "YYYY-MM-DD", INDIA_TZ);
