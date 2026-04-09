@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { getTodayInIndia, getIndiaWeekday, formatDateWithWeekday } from "@/lib/date";
-import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
+import { encodeCampaignForUrlPath } from "@/lib/campaignPathEncoding";
 
 type Row = {
   date: string;
@@ -68,13 +67,12 @@ function toUsd(amountHkd: number): number {
 type ProductTab = "ft" | "pu" | "ppt";
 
 const TABS: { key: ProductTab; label: string }[] = [
-  { key: "ft", label: "Fachat" },
-  { key: "pu", label: "Parau" },
-  { key: "ppt", label: "Pinkpinkchat" },
+  { key: "ft", label: "产品线-A" },
+  { key: "pu", label: "产品线-B" },
+  { key: "ppt", label: "产品线-C" },
 ];
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [productLine, setProductLine] = useState<ProductTab>("ft");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -84,7 +82,6 @@ export default function DashboardPage() {
   const [notesError, setNotesError] = useState<string | null>(null);
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [productDailyNotesMap, setProductDailyNotesMap] = useState<Record<string, string>>({});
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
 
   // 仅在客户端挂载后设置“今天”（印度时间），避免服务端与客户端时区不一致导致日期错位
   useEffect(() => {
@@ -92,18 +89,6 @@ export default function DashboardPage() {
     setStartDate(today);
     setEndDate(today);
   }, []);
-
-  // 必须登录后才能查看看板
-  useEffect(() => {
-    if (!supabase) {
-      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
-      return;
-    }
-    void supabase.auth.getUser().then(({ data: authData }) => {
-      const user = authData.user;
-      if (!user) router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
-    });
-  }, [supabase, router]);
 
   async function load() {
     setLoading(true);
@@ -115,10 +100,6 @@ export default function DashboardPage() {
       view: "pivot",
     });
     const res = await fetch(`/api/dashboard?${params.toString()}`);
-    if (res.status === 401) {
-      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
-      return;
-    }
     const json: ApiResponse = await res.json();
 
     if (!res.ok || !json.ok) {
@@ -217,6 +198,11 @@ export default function DashboardPage() {
 
     return { pivotDates: dates, pivotCampaigns: campaigns, rowMap: map, dailySummary };
   }, [data]);
+  const campaignAliasMap = useMemo(() => {
+    return new Map(
+      pivotCampaigns.map((camp, index) => [camp, `演示系列-${String(index + 1).padStart(2, "0")}`])
+    );
+  }, [pivotCampaigns]);
 
   const currentSummary = data?.summaries?.find((s) => s.product_line === productLine);
 
@@ -237,10 +223,6 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date, campaign_name, content: trimmed }),
     });
-    if (res.status === 401) {
-      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
-      return;
-    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       setNotesError(json.error?.message ?? "保存备注失败");
@@ -257,10 +239,6 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date, product_line: productLine, content: trimmed }),
     });
-    if (res.status === 401) {
-      router.replace(`/login?redirect=${encodeURIComponent("/dashboard")}`);
-      return;
-    }
     const json = await res.json();
     if (!res.ok || !json.ok) {
       setNotesError(json.error?.message ?? "保存产品日备注失败");
@@ -316,8 +294,8 @@ export default function DashboardPage() {
       }
       return [
         row.date,
-        row.product_line,
-        row.campaign_name,
+        TABS.find((t) => t.key === row.product_line)?.label ?? row.product_line,
+        campaignAliasMap.get(row.campaign_name) ?? row.campaign_name,
         formatMoney(budgetUsd),
         formatMoney(spendUsd),
         String(row.ads_conversions),
@@ -553,7 +531,9 @@ export default function DashboardPage() {
                       colSpan={SUB_COLS.length}
                       className="border-r border-slate-200 bg-sky-100 px-2 py-2 text-center text-[12px] font-semibold text-sky-900"
                     >
-                      {camp}
+                      <Link href={`/campaign-analysis/${encodeCampaignForUrlPath(camp)}`} className="hover:underline">
+                        {campaignAliasMap.get(camp) ?? camp}
+                      </Link>
                     </th>
                     {idx < pivotCampaigns.length - 1 && (
                       <th

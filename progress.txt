@@ -47,3 +47,16 @@
 2026-03-21：修复 Vercel `next build` TypeScript 失败：`ads/sync` 中 `refresh_token` 类型收窄；新增 `web/src/papaparse.d.ts` 声明 papaparse 以满足严格类型检查。
 2026-03-30：引入 Supabase Auth 登录态强制；`/dashboard` 与 `/upload` 未登录自动跳转 `/login`，所有相关 `/api/*` 路由未登录返回 401。
 2026-03-30：添加网站 favicon/logo（浏览器标签图标）；修复线上 `/favicon.svg` 未生效问题（含清理重复 SVG 内容）。
+2026-04-02：修复首页缺失的“广告系列分析”入口：恢复 `/campaign-analysis`（Hub + 单系列页）并在首页/看板表头恢复跳转链接。
+2026-04-02：修复当 `GOOGLE_ADS_*` 环境变量未配置时，系列页仅显示环境变量提示导致 1a/1b 消失的问题：Ads 缺失时用 `/api/dashboard` 兜底计算展示 1a，并为 1b 保留占位提示。
+2026-04-02：补齐 `web/.env.local` 缺失的环境变量字段（保留现有 NEXT_PUBLIC_SUPABASE_*），便于从 Vercel/Supabase/Google Ads 控制台回填密钥。
+2026-04-02：系列分析 Hub 与单系列页底部增加可折叠「优化排查 SOP」全文组件 `CampaignAnalysisSopReference.tsx`（口径：转化 = s2s_purchase）。
+2026-04-02：单系列分析页新增「维度4·例行检查」：`GET /api/campaign-analysis/routine-checks` 经 Google Ads API 拉取设备/性别条件、政策摘要、落地页 URL、GCLID 跟链抽检、（可选）PageSpeed LCP、按国家与广告组的 s2s_purchase 转化与价值；`.env.example` 补充可选变量说明。
+2026-04-02：修复系列分析 Google API 报错显示为 [object Object]（`formatGoogleAdsError`）；系列名支持大小写/前缀多版本 IN 匹配并回写 `campaign_name_resolved`；支持 `GOOGLE_ADS_LOGIN_CUSTOMER_ID`（MCC）登录子账户；`ads-budget` 同步改为 `campaign.name` + 相同匹配与登录逻辑。
+2026-04-02：抑制 `google-ads-api` REST 解析器对 `field_violations.description` 的无类型映射刷屏 `console.warn`（`withMutedGoogleAdsParserWarnings` 用于 `ads-budget` / `routine-checks`）。
+2026-04-02：修复 GoogleAdsFailure/protobuf 错误在 API 与 UI 中显示为 [object Object]：增强 `formatGoogleAdsError`（toJSON、errors[]、axios response、`toApiErrorString`）；前端 `displayApiErrorText` 兜底。
+2026-04-02：修正 protobuf 解码须用 **构造函数静态方法** `Class.toObject(instance)`（非实例 toObject）；axios details 内嵌 GoogleAdsFailure 亦解析；最后用 `util.inspect` 兜底避免无信息提示。
+2026-04-08：新增 demo 隔离部署文档 `DEMO_ENV_SETUP.md`；`.env.example` 增加 `STRICT_ENV_ISOLATION`/`EXPECTED_SUPABASE_PROJECT_REF`；在 `supabase`/`supabaseServer`/`supabaseAdmin` 引入 `assertSupabaseIsolation`，可在 demo 环境强制校验 Supabase 项目 ref，避免误连正式库。
+2026-04-08：已创建并推送远程分支 `demo`；新增 `web/.env.demo.example` 作为演示环境专用变量模板，减少 Vercel 配置误填风险；`DEMO_ENV_SETUP.md` 增加模板入口说明。
+2026-04-08：Dashboard 展示层脱敏：产品 Tab 文案改为「产品线-A/B/C」，广告系列列头与导出 CSV 的 `campaign_name` 改为「演示系列-xx」别名（仅前端展示，不改数据库原始 campaign_name）。
+2026-04-09：新增演示数据生成脚本 `web/scripts/generate-demo-csv.mjs`，并生成 `web/demo-data/metrics-2026-04-01-to-2026-04-09.csv` 与 `web/demo-data/paid-2026-04-01-to-2026-04-09.csv`（中文表头，匹配上传接口）。
